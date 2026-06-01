@@ -26,8 +26,8 @@ typedef struct _AquaCtrl_ControlRelayData {
 typedef struct _AquaCtrl_MonitorData {
     uint32_t deviceId; /* ID của con Monitor (1, 2, 3...) */
     uint32_t AmpeChannel1x100;
-    uint32_t AmpeChannel2x100;
-    uint32_t AmpeChannel3x100;
+    uint32_t Oxyx100;
+    uint32_t pHx100;
     uint32_t Voltagex100;
     uint32_t Temperaturex100;
 } AquaCtrl_MonitorData;
@@ -64,8 +64,8 @@ extern "C" {
 #define AquaCtrl_ControlRelayData_status_control_tag 2
 #define AquaCtrl_MonitorData_deviceId_tag        1
 #define AquaCtrl_MonitorData_AmpeChannel1x100_tag 2
-#define AquaCtrl_MonitorData_AmpeChannel2x100_tag 3
-#define AquaCtrl_MonitorData_AmpeChannel3x100_tag 4
+#define AquaCtrl_MonitorData_Oxyx100_tag         3
+#define AquaCtrl_MonitorData_pHx100_tag          4
 #define AquaCtrl_MonitorData_Voltagex100_tag     5
 #define AquaCtrl_MonitorData_Temperaturex100_tag 6
 #define AquaCtrl_ControlStatusData_gatewayId_tag 1
@@ -86,8 +86,8 @@ X(a, STATIC,   REQUIRED, UINT32,   status_control,    2)
 #define AquaCtrl_MonitorData_FIELDLIST(X, a) \
 X(a, STATIC,   REQUIRED, UINT32,   deviceId,          1) \
 X(a, STATIC,   REQUIRED, UINT32,   AmpeChannel1x100,   2) \
-X(a, STATIC,   REQUIRED, UINT32,   AmpeChannel2x100,   3) \
-X(a, STATIC,   REQUIRED, UINT32,   AmpeChannel3x100,   4) \
+X(a, STATIC,   REQUIRED, UINT32,   Oxyx100,           3) \
+X(a, STATIC,   REQUIRED, UINT32,   pHx100,            4) \
 X(a, STATIC,   REQUIRED, UINT32,   Voltagex100,       5) \
 X(a, STATIC,   REQUIRED, UINT32,   Temperaturex100,   6)
 #define AquaCtrl_MonitorData_CALLBACK NULL

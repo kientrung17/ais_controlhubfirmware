@@ -22,8 +22,14 @@ void EspNowReceiverTask::onInitProcess()
 {
     LOG_INFO("EspNowReceiverTask", "Initializing ESP-NOW receiver...");
 
+    // Chờ cho đến khi Wi-Fi stack được khởi tạo và chạy thành công bởi WifiManagerTask
+    wifi_mode_t mode;
+    while (esp_wifi_get_mode(&mode) != ESP_OK) {
+        LOG_INFO("EspNowReceiverTask", "Waiting for Wi-Fi stack to be initialized...");
+        vTaskDelay(pdMS_TO_TICKS(500));
+    }
+
     // Bước 1: ESP-NOW bắt buộc phải chạy sau khi WiFi đã được khởi tạo
-    // WifiManagerTask đã khởi tạo WiFi stack trước đó => gọi trực tiếp
     esp_err_t err = esp_now_init();
     if (err != ESP_OK) {
         LOG_ERROR("EspNowReceiverTask", "esp_now_init() failed: 0x%x", err);
@@ -83,17 +89,20 @@ void EspNowReceiverTask::onDataReceive(const esp_now_recv_info_t *recvInfo,
     EspNowMonitorPayload payload;
     memcpy(&payload, data, sizeof(EspNowMonitorPayload));
 
-    // Lọc định danh: chỉ nhận dữ liệu từ mạch Monitor đã đăng ký
-    if (payload.deviceId != MONITOR_DEVICE_ID) {
-        LOG_DEBUG("EspNowReceiverTask", "Ignored packet from unknown deviceId=%d",
-                  payload.deviceId);
-        return;
+    // Chỉ xử lý nếu deviceId nằm trong dải hợp lệ (0-9)
+    if (payload.deviceId < 10) {
+        // Ghi thẳng vào SharedDataStore (Lock-free, ISR-safe, zero latency)
+        gSharedData.remote_monitors[payload.deviceId].ampe_ch1.store(payload.ampeChannel1, std::memory_order_relaxed);
+        gSharedData.remote_monitors[payload.deviceId].oxy.store(payload.oxy, std::memory_order_relaxed);
+        gSharedData.remote_monitors[payload.deviceId].pH.store(payload.pH, std::memory_order_relaxed);
+        gSharedData.remote_monitors[payload.deviceId].voltage.store(payload.voltage, std::memory_order_relaxed);
+        gSharedData.remote_monitors[payload.deviceId].temperature.store(payload.temperature, std::memory_order_relaxed);
+        
+        // Bật cờ báo có dữ liệu mới để MqttManagerTask quét
+        gSharedData.remote_monitors[payload.deviceId].has_new_data.store(true, std::memory_order_release);
     }
 
-    // Ghi thẳng vào SharedDataStore (Lock-free, ISR-safe, zero latency)
-    gSharedData.motor_temp.store(payload.motorTemp, std::memory_order_relaxed);
-    gSharedData.remote_voltage.store(payload.remoteVoltage, std::memory_order_relaxed);
-
-    LOG_INFO("EspNowReceiverTask", "OK | deviceId=%d | Temp=%.2f°C | Volt=%.2fV",
-              payload.deviceId, payload.motorTemp, payload.remoteVoltage);
+    LOG_INFO("EspNowReceiverTask", "OK | deviceId=%d | I1=%.2f Oxy=%.2f pH=%.2f | Temp=%.2f°C | Volt=%.2fV",
+              payload.deviceId, payload.ampeChannel1, payload.oxy, payload.pH, 
+              payload.temperature, payload.voltage);
 }

@@ -5,6 +5,8 @@
 #include "message/controlstatusdatamessage.h"
 #include "message/controlrelaymessage.h"
 #include "codec/codecmessage.h"
+#include "task/espnowreceivertask.h"
+#include "message/monitordatamessage.h"
 
 MqttManagerTask::MqttManagerTask(std::string nameTask, int numElementQueueSet)
     : TaskAbstract(nameTask, numElementQueueSet)
@@ -73,6 +75,55 @@ void MqttManagerTask::onTimer100HzProcess()
         if (mMqttClient) {
             LOG_INFO("MqttManagerTask", "Wifi disconnected, stopping MQTT client...");
             mMqttClient->stop();
+        }
+    }
+
+    // --- Quét Mảng Atomic (Remote Monitors) ---
+    // Kiểm tra định kỳ 100Hz, áp dụng cooldown 200ms (20 ticks) giữa các lần Publish
+    static int monitor_check_index = 0;
+    static int publish_cooldown = 0;
+
+    if (publish_cooldown > 0) {
+        publish_cooldown--;
+    } else {
+        if (mMqttClient && mMqttClient->isMqttConnected()) {
+            // Quét qua 10 monitor để tìm monitor có dữ liệu mới
+            for (int i = 0; i < 10; i++) {
+                int idx = (monitor_check_index + i) % 10;
+                
+                // Sử dụng .load() lock-free để kiểm tra cờ
+                if (gSharedData.remote_monitors[idx].has_new_data.load(std::memory_order_relaxed)) {
+                    // Hạ cờ (đã đọc)
+                    gSharedData.remote_monitors[idx].has_new_data.store(false, std::memory_order_relaxed);
+                    
+                    // Map to Protobuf struct
+                    AquaCtrl_MonitorData monitorData = AquaCtrl_MonitorData_init_zero;
+                    monitorData.deviceId = idx;
+                    monitorData.AmpeChannel1x100 = (uint32_t)(gSharedData.remote_monitors[idx].ampe_ch1.load(std::memory_order_relaxed) * 100.0f);
+                    monitorData.Oxyx100 = (uint32_t)(gSharedData.remote_monitors[idx].oxy.load(std::memory_order_relaxed) * 100.0f);
+                    monitorData.pHx100 = (uint32_t)(gSharedData.remote_monitors[idx].pH.load(std::memory_order_relaxed) * 100.0f);
+                    monitorData.Voltagex100 = (uint32_t)(gSharedData.remote_monitors[idx].voltage.load(std::memory_order_relaxed) * 100.0f);
+                    monitorData.Temperaturex100 = (uint32_t)(gSharedData.remote_monitors[idx].temperature.load(std::memory_order_relaxed) * 100.0f);
+
+                    MonitorDataMessage msg(monitorData);
+                    CodecMessage codecMsg;
+                    if (msg.packData(&codecMsg)) {
+                        char devIdStr[32];
+                        snprintf(devIdStr, sizeof(devIdStr), "%llu", (unsigned long long)gDeviceID);
+                        std::string topicMonitor = std::string("devices/") + devIdStr + "/telemetry/monitor";
+
+                        uint16_t totalLen = codecMsg.mMsgDataLength; 
+                        mMqttClient->publish(topicMonitor, (const char*)codecMsg.mDataRaw, totalLen, MqttClientAbstract::QOS_1);
+                    } else {
+                        LOG_ERROR("MqttManagerTask", "Failed to pack MonitorData");
+                    }
+                    
+                    // Set cooldown 20 ticks (200ms) để chống spam MQTT Broker
+                    publish_cooldown = 20;
+                    monitor_check_index = idx + 1; // Lần sau sẽ quét tiếp từ monitor tiếp theo
+                    break; // Chỉ publish 1 monitor trong mỗi lượt để giãn cách
+                }
+            }
         }
     }
 }

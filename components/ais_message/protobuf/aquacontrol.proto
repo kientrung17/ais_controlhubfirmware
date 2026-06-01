@@ -17,8 +17,8 @@ message ControlRelayData {
 message MonitorData {
     required uint32 deviceId = 1;         // ID của con Monitor (1, 2, 3...)
     required uint32 AmpeChannel1x100 = 2;
-    required uint32 AmpeChannel2x100 = 3;
-    required uint32 AmpeChannel3x100 = 4;
+    required uint32 Oxyx100 = 3;
+    required uint32 pHx100 = 4;
     required uint32 Voltagex100 = 5;
     required uint32 Temperaturex100 = 6;
 }

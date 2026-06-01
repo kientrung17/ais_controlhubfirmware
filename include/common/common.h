@@ -69,6 +69,16 @@ extern OSBase *mOSBase;
 // relay manager task
 // wifi task
 extern OSBase::SemHandle gSemInputBtnConfigFromRelayTaskToWifiTask;
+// Cấu trúc chứa dữ liệu của từng mạch Monitor (Atomic Array)
+struct RemoteMonitorState {
+  std::atomic<float> ampe_ch1{0.0f};
+  std::atomic<float> oxy{0.0f};
+  std::atomic<float> pH{0.0f};
+  std::atomic<float> voltage{0.0f};
+  std::atomic<float> temperature{0.0f};
+  std::atomic<bool>  has_new_data{false};
+};
+
 // Shared Data Store (Lock-free)
 struct SharedDataStore {
   std::atomic<float> ampe_ch1{0.0f};
@@ -78,6 +88,9 @@ struct SharedDataStore {
   std::atomic<float> remote_voltage{0.0f};
   std::atomic<bool> is_lost_phase{false};
   std::atomic<bool> is_lost_electric{false};
+
+  // Mảng lưu trữ trạng thái của tối đa 10 mạch Monitor (ID 0->9)
+  RemoteMonitorState remote_monitors[10];
 };
 extern SharedDataStore gSharedData;
 

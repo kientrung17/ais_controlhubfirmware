@@ -8,11 +8,16 @@
 // Struct dữ liệu ESP-NOW gửi từ mạch Monitor sang mạch Control
 // Mạch Monitor phải đóng gói đúng theo struct này trước khi gửi
 // =========================================================
+#pragma pack(push, 1)
 struct EspNowMonitorPayload {
-    uint32_t deviceId;         // ID định danh mạch Monitor (ví dụ: 101)
-    float    motorTemp;        // Nhiệt độ vỏ động cơ (°C)
-    float    remoteVoltage;    // Điện áp đo được tại mạch Monitor (V)
+    uint32_t deviceId;       // ID thiết bị phát, ex: 1, 2, 3...
+    float ampeChannel1;      // Dòng điện Kênh 1
+    float oxy;               // Nồng độ Oxy hòa tan
+    float pH;                // Độ pH nước
+    float voltage;           // Điện áp pin/ắc quy
+    float temperature;       // Nhiệt độ vỏ động cơ
 };
+#pragma pack(pop)
 
 class EspNowReceiverTask : public TaskAbstract
 {
