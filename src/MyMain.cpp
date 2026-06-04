@@ -38,7 +38,7 @@ ConfigSystemTask *mConfigSystemTask{nullptr};
 // mqtt manager
 #define ID_MQTT_MANAGER_TASK 6
 const std::string MQTT_MANAGER_TASKNAME = "MqttManagerTask";
-const uint8_t MaxElementQueueSetTaskMqttManager = 4;
+const uint8_t MaxElementQueueSetTaskMqttManager = 10;
 MqttManagerTask *mMqttManagerTask{nullptr};
 // - 1 (sem 100Hz)
 // Dùng 4 để có biên an toàn.
@@ -61,8 +61,9 @@ const std::string POWER_MANAGER_TASKNAME = "PowerManagerTask";
 // - 1 (sem 100Hz)
 // Dùng 2 để có biên an toàn.
 const uint8_t MaxElementQueueSetTaskPowerManager = 2;
-HalGpioAbstract *mGpioCheckPhase{nullptr};
-HalGpioAbstract *mGpioCheckElectric{nullptr};
+HalGpioAbstract *mGpioPhase1{nullptr};
+HalGpioAbstract *mGpioPhase2{nullptr};
+HalGpioAbstract *mGpioPhase3{nullptr};
 HalGpioAbstract *mGpioChargePin{nullptr};
 
 // adc reader task
@@ -166,16 +167,17 @@ void startAllTask() {
                                            gGpioRelay);
   mRelayManagerTask->initregisterQueueToQueueset(&gQueueRelayControlCmd, sizeof(ControlRelayMessage), 10);
 
-  ////////////// power manager task
-  mGpioCheckPhase = new HalEsp32Gpio(
-      PIN_GPIO_CHECK_PHASE, HalGpioAbstract::GpioMode::GPIO_MODE_INPUT);
-  mGpioCheckElectric = new HalEsp32Gpio(
-      PIN_GPIO_CHECK_ELECTRIC, HalGpioAbstract::GpioMode::GPIO_MODE_INPUT);
+  mGpioPhase1 = new HalEsp32Gpio(
+      PIN_GPIO_PHASE_1, HalGpioAbstract::GpioMode::GPIO_MODE_INPUT);
+  mGpioPhase2 = new HalEsp32Gpio(
+      PIN_GPIO_PHASE_2, HalGpioAbstract::GpioMode::GPIO_MODE_INPUT);
+  mGpioPhase3 = new HalEsp32Gpio(
+      PIN_GPIO_PHASE_3, HalGpioAbstract::GpioMode::GPIO_MODE_INPUT);
   mGpioChargePin = new HalEsp32Gpio(
       PIN_GPIO_CHARGE_PIN, HalGpioAbstract::GpioMode::GPIO_MODE_INPUT_OUTPUT);
   gPowerManagerTask = new PowerManagerTask(
       POWER_MANAGER_TASKNAME, MaxElementQueueSetTaskPowerManager,
-      mGpioCheckPhase, mGpioCheckElectric, mGpioChargePin);
+      mGpioPhase1, mGpioPhase2, mGpioPhase3, mGpioChargePin);
   // queue receive ADC raw (2 channels) - REMOVED, using SharedDataStore
 
   ////////////// adc reader task
@@ -210,7 +212,7 @@ void startAllTask() {
                           4096, ID_ADC_READER_TASK) &&
       mOSBase->taskCreate((char *)CONFIG_SYSTEM_TASKNAME.c_str(),
                           (TaskProc)StartConfigSystemTask, OSBase::PRIORITY_NORMAL,
-                          4096, ID_CONFIG_SYSTEM_TASK) &&
+                          8192, ID_CONFIG_SYSTEM_TASK) &&
       mOSBase->taskCreate((char *)MQTT_MANAGER_TASKNAME.c_str(),
                           (TaskProc)StartMqttManagerTask, OSBase::PRIORITY_NORMAL,
                           8012, ID_MQTT_MANAGER_TASK) &&

@@ -44,8 +44,9 @@ void processTimer100Hz();
 #define PIN_GPIO_RELAY_5 27
 #define PIN_GPIO_RELAY_6 14
 // Gpio input check power
-#define PIN_GPIO_CHECK_PHASE 34
-#define PIN_GPIO_CHECK_ELECTRIC 18
+#define PIN_GPIO_PHASE_1 19
+#define PIN_GPIO_PHASE_2 18
+#define PIN_GPIO_PHASE_3 34
 // Adc power monitor
 #define PIN_ADC_SCT013_01 36
 #define PIN_ADC_SCT013_02 39
@@ -86,7 +87,9 @@ struct SharedDataStore {
   std::atomic<float> voltage_pin{0.0f};
   std::atomic<float> motor_temp{0.0f};
   std::atomic<float> remote_voltage{0.0f};
-  std::atomic<bool> is_lost_phase{false};
+  std::atomic<bool> is_lost_phase1{false};
+  std::atomic<bool> is_lost_phase2{false};
+  std::atomic<bool> is_lost_phase3{false};
   std::atomic<bool> is_lost_electric{false};
 
   // Mảng lưu trữ trạng thái của tối đa 10 mạch Monitor (ID 0->9)

@@ -28,7 +28,8 @@ public:
     static constexpr uint8_t COUNTER_VERIFY_PIN = 6; //check muc dien ap 6 lan truoc khi dieu khien sac
     static constexpr uint16_t MAX_COUNTER_TIME_CHARGE = 540; // 540 * 10s = 1.5 gio
 
-    PowerManagerTask(std::string nameTask, int numElementQueueSet, HalGpioAbstract *gpioLostPhase, HalGpioAbstract *gpioLostElectric,
+    PowerManagerTask(std::string nameTask, int numElementQueueSet,
+                     HalGpioAbstract *gpioPhase1, HalGpioAbstract *gpioPhase2, HalGpioAbstract *gpioPhase3,
                      HalGpioAbstract *gpioChargePin);
     ~PowerManagerTask();
 
@@ -43,7 +44,6 @@ public:
     void onQueueSetMessageProcess(OSBase::QueueHandle queue_sem) override;
     void onInitProcess() override;
 
-
     bool isLostPhase() const;
     bool isLostElectric() const;
 
@@ -52,13 +52,16 @@ private:
     void processManageChargePin();
 
 private:
-
     uint32_t mCounter100Hz{0};
     uint32_t mCounterChargePin{0};
-    HalGpioAbstract *mGPIOLostPhase{nullptr};
-    HalGpioAbstract *mGPIOLostElectric{nullptr};
+    HalGpioAbstract *mGPIOPhase1{nullptr};
+    HalGpioAbstract *mGPIOPhase2{nullptr};
+    HalGpioAbstract *mGPIOPhase3{nullptr};
     HalGpioAbstract *mGPIOChargePin{nullptr};
     float mVolPin{0.0f};
+    bool mIsLostPhase1{false};
+    bool mIsLostPhase2{false};
+    bool mIsLostPhase3{false};
     bool mIsSystemLostPhase{false};
     bool mIsSystemLostElectric{false};
     uint8_t mCounterVerifyCharge {0};
