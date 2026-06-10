@@ -1,28 +1,53 @@
 #include "task/configsystemtask.h"
-#include "HAL/HAL_ESP32/udpesp32.h"
 #include "common/common.h"
 #include "common/storeflashmanager.h"
 #include "loggermanager.h"
 #include "message/configsystemmessage.h"
 #include "esp_system.h"
+#include <fcntl.h>
+#include <string.h>
 
 ConfigSystemTask::ConfigSystemTask(std::string nameTask, int numElementQueueSet)
     : TaskAbstract(nameTask, numElementQueueSet)
 {
+    memset(&mRemoteAddr, 0, sizeof(mRemoteAddr));
 }
 
 ConfigSystemTask::~ConfigSystemTask()
 {
-    if (mUdp) {
-        delete mUdp;
+    if (mSockFd >= 0) {
+        close(mSockFd);
     }
 }
 
 void ConfigSystemTask::onInitProcess()
 {
     LOG_INFO("ConfigSystemTask", "Initializing ConfigSystemTask on UDP port %d", UDP_LOCAL_PORT_SYSTEM_CONFIG);
-    mUdp = new UdpEsp32(UDP_LOCAL_PORT_SYSTEM_CONFIG);
-    mUdp->init();
+    mSockFd = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
+    if (mSockFd < 0) {
+        LOG_ERROR("ConfigSystemTask", "Failed to create socket!");
+        return;
+    }
+
+    struct sockaddr_in local_addr;
+    memset(&local_addr, 0, sizeof(local_addr));
+    local_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    local_addr.sin_family = AF_INET;
+    local_addr.sin_port = htons(UDP_LOCAL_PORT_SYSTEM_CONFIG);
+
+    if (bind(mSockFd, (struct sockaddr *)&local_addr, sizeof(local_addr)) < 0) {
+        LOG_ERROR("ConfigSystemTask", "Failed to bind socket!");
+        close(mSockFd);
+        mSockFd = -1;
+        return;
+    }
+
+    // Set socket to non-blocking
+    int flags = fcntl(mSockFd, F_GETFL, 0);
+    if (flags >= 0) {
+        fcntl(mSockFd, F_SETFL, flags | O_NONBLOCK);
+    }
+    LOG_INFO("ConfigSystemTask", "Socket created and bound successfully.");
 }
 
 void ConfigSystemTask::onTimer100HzProcess()
@@ -38,37 +63,43 @@ void ConfigSystemTask::onQueueSetMessageProcess(OSBase::QueueHandle queue_sem)
 
 void ConfigSystemTask::processReadDataFromUDP()
 {
-    if (mUdp && mUdp->checkAvailable()) {
-        uint8_t rawBuffer[384];
-        int length = mUdp->read(rawBuffer, sizeof(rawBuffer));
-        if (length > 0) {
-            CodecMessage codecMsg;
-            if (length >= 3) {
-                codecMsg.mMsgID = rawBuffer[0];
-                codecMsg.mMsgDataLength = (rawBuffer[1] << 8) | rawBuffer[2];
-                if (codecMsg.mMsgDataLength <= CodecMessage::MAX_DATA_LENGTH && 
-                    codecMsg.mMsgDataLength <= (length - 3)) {
-                    memcpy(codecMsg.mDataRaw, &rawBuffer[3], codecMsg.mMsgDataLength);
-                    
-                    mUdp->updateRemoteFromRemoteOfDataReceive();
+    if (mSockFd < 0) {
+        return;
+    }
 
-                    switch (codecMsg.mMsgID) {
-                        case 1: // Bản tin Ping (Discovery)
-                            processorPingMessage();
-                            break;
-                        case 2: // Bản tin ghi cấu hình mới CONFIG_SYSTEM_MESSAGE
-                            processorConfigSystemMessage(&codecMsg);
-                            break;
-                        case 3: // Bản tin yêu cầu đọc cấu hình (READ_CONFIG_SYSTEM)
-                            processorCommandSystemMessage(&codecMsg);
-                            break;
-                        default:
-                            LOG_ERROR("ConfigSystemTask", "Unknown Message ID received: %d", codecMsg.mMsgID);
-                            break;
-                    }
-                } else {
-                    LOG_ERROR("ConfigSystemTask", "Message data length mismatch: expected %d, got %d", codecMsg.mMsgDataLength, length - 3);
+    uint8_t rawBuffer[384];
+    struct sockaddr_in source_addr;
+    socklen_t socklen = sizeof(source_addr);
+    
+    int length = recvfrom(mSockFd, rawBuffer, sizeof(rawBuffer), 0, (struct sockaddr *)&source_addr, &socklen);
+    if (length > 0) {
+        // Store remote address for replies
+        mRemoteAddr = source_addr;
+
+        CodecMessage codecMsg;
+        if (length >= 3) {
+            codecMsg.mMsgID = rawBuffer[0];
+            codecMsg.mMsgDataLength = (rawBuffer[1] << 8) | rawBuffer[2];
+            if (codecMsg.mMsgDataLength <= CodecMessage::MAX_DATA_LENGTH && 
+                codecMsg.mMsgDataLength <= (length - 3)) {
+                memcpy(codecMsg.mDataRaw, &rawBuffer[3], codecMsg.mMsgDataLength);
+
+                switch (codecMsg.mMsgID) {
+                    case 1: // Bản tin Ping (Discovery)
+                        processorPingMessage();
+                        break;
+                    case 2: // Bản tin ghi cấu hình mới CONFIG_SYSTEM_MESSAGE
+                        processorConfigSystemMessage(&codecMsg);
+                        break;
+                    case 3: // Bản tin yêu cầu đọc cấu hình (READ_CONFIG_SYSTEM)
+                        processorCommandSystemMessage(&codecMsg);
+                        break;
+                    default:
+                        LOG_ERROR("ConfigSystemTask", "Unknown Message ID received: %d", codecMsg.mMsgID);
+                        break;
                 }
+            } else {
+                LOG_ERROR("ConfigSystemTask", "Message data length mismatch: expected %d, got %d", codecMsg.mMsgDataLength, length - 3);
             }
         }
     }
@@ -95,8 +126,10 @@ void ConfigSystemTask::sendPingResponseToAppCenter()
     sendBuffer[2] = respMsg.mMsgDataLength & 0xFF;
     memcpy(&sendBuffer[3], respMsg.mDataRaw, respMsg.mMsgDataLength);
     
-    mUdp->send(sendBuffer, respMsg.mMsgDataLength + 3);
-    LOG_INFO("ConfigSystemTask", "Sent Ping Response to App Center");
+    if (mSockFd >= 0 && mRemoteAddr.sin_port != 0) {
+        sendto(mSockFd, sendBuffer, respMsg.mMsgDataLength + 3, 0, (struct sockaddr *)&mRemoteAddr, sizeof(mRemoteAddr));
+        LOG_INFO("ConfigSystemTask", "Sent Ping Response to App Center");
+    }
 }
 
 void ConfigSystemTask::processorCommandSystemMessage(CodecMessage *msg)
@@ -112,8 +145,10 @@ void ConfigSystemTask::processorCommandSystemMessage(CodecMessage *msg)
         sendBuffer[2] = respMsg.mMsgDataLength & 0xFF;
         memcpy(&sendBuffer[3], respMsg.mDataRaw, respMsg.mMsgDataLength);
         
-        mUdp->send(sendBuffer, respMsg.mMsgDataLength + 3);
-        LOG_INFO("ConfigSystemTask", "Sent ConfigSystemMessage response to App Center");
+        if (mSockFd >= 0 && mRemoteAddr.sin_port != 0) {
+            sendto(mSockFd, sendBuffer, respMsg.mMsgDataLength + 3, 0, (struct sockaddr *)&mRemoteAddr, sizeof(mRemoteAddr));
+            LOG_INFO("ConfigSystemTask", "Sent ConfigSystemMessage response to App Center");
+        }
     } else {
         LOG_ERROR("ConfigSystemTask", "Failed to pack ConfigSystemMessage");
     }

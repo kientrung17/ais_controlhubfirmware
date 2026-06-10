@@ -30,6 +30,7 @@ typedef struct _AquaCtrl_MonitorData {
     uint32_t pHx100;
     uint32_t Voltagex100;
     uint32_t Temperaturex100;
+    uint32_t IsPowerLostPhare; /* Mất pha phía monitor (Bitmask từ 0 đến 7) */
 } AquaCtrl_MonitorData;
 
 /* =========================================================
@@ -53,10 +54,10 @@ extern "C" {
 
 /* Initializer values for message structs */
 #define AquaCtrl_ControlRelayData_init_default   {0, 0}
-#define AquaCtrl_MonitorData_init_default        {0, 0, 0, 0, 0, 0}
+#define AquaCtrl_MonitorData_init_default        {0, 0, 0, 0, 0, 0, 0}
 #define AquaCtrl_ControlStatusData_init_default  {0, 0, 0, 0, 0, 0, 0}
 #define AquaCtrl_ControlRelayData_init_zero      {0, 0}
-#define AquaCtrl_MonitorData_init_zero           {0, 0, 0, 0, 0, 0}
+#define AquaCtrl_MonitorData_init_zero           {0, 0, 0, 0, 0, 0, 0}
 #define AquaCtrl_ControlStatusData_init_zero     {0, 0, 0, 0, 0, 0, 0}
 
 /* Field tags (for use in manual encoding/decoding) */
@@ -68,6 +69,7 @@ extern "C" {
 #define AquaCtrl_MonitorData_pHx100_tag          4
 #define AquaCtrl_MonitorData_Voltagex100_tag     5
 #define AquaCtrl_MonitorData_Temperaturex100_tag 6
+#define AquaCtrl_MonitorData_IsPowerLostPhare_tag 7
 #define AquaCtrl_ControlStatusData_gatewayId_tag 1
 #define AquaCtrl_ControlStatusData_AmpeChannel1x100_tag 2
 #define AquaCtrl_ControlStatusData_AmpeChannel2x100_tag 3
@@ -89,7 +91,8 @@ X(a, STATIC,   REQUIRED, UINT32,   AmpeChannel1x100,   2) \
 X(a, STATIC,   REQUIRED, UINT32,   Oxyx100,           3) \
 X(a, STATIC,   REQUIRED, UINT32,   pHx100,            4) \
 X(a, STATIC,   REQUIRED, UINT32,   Voltagex100,       5) \
-X(a, STATIC,   REQUIRED, UINT32,   Temperaturex100,   6)
+X(a, STATIC,   REQUIRED, UINT32,   Temperaturex100,   6) \
+X(a, STATIC,   REQUIRED, UINT32,   IsPowerLostPhare,   7)
 #define AquaCtrl_MonitorData_CALLBACK NULL
 #define AquaCtrl_MonitorData_DEFAULT NULL
 
@@ -114,10 +117,10 @@ extern const pb_msgdesc_t AquaCtrl_ControlStatusData_msg;
 #define AquaCtrl_ControlStatusData_fields &AquaCtrl_ControlStatusData_msg
 
 /* Maximum encoded size of messages (where known) */
-#define AQUACTRL_AQUACONTROL_PB_H_MAX_SIZE       AquaCtrl_ControlStatusData_size
+#define AQUACTRL_AQUACONTROL_PB_H_MAX_SIZE       AquaCtrl_MonitorData_size
 #define AquaCtrl_ControlRelayData_size           12
 #define AquaCtrl_ControlStatusData_size          42
-#define AquaCtrl_MonitorData_size                36
+#define AquaCtrl_MonitorData_size                42
 
 #ifdef __cplusplus
 } /* extern "C" */

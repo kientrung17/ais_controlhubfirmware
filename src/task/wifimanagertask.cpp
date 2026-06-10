@@ -1,6 +1,7 @@
 #include "task/wifimanagertask.h"
 #include "loggermanager.h"
 #include "common/common.h"
+#include "esp_sntp.h"
 
 
 WifiManagerTask::WifiManagerTask(WiFiManagerAbstract *wifimanager, std::string nameTask, int numElementQueueSet)
@@ -105,6 +106,7 @@ void WifiManagerTask::processInitSntpStateMachine(StateSntp stateSntp)
     }
     case StateSntp::Init:
     {
+        esp_sntp_stop(); // Stop SNTP client to prevent crash when re-initializing or switching servers
         if (mServerType == ServerType::Ntp)
         {
             mSntpServer.beginUpdateSync(SERVER_SNTSP_NTP);

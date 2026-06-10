@@ -104,6 +104,7 @@ void MqttManagerTask::onTimer100HzProcess()
                     monitorData.pHx100 = (uint32_t)(gSharedData.remote_monitors[idx].pH.load(std::memory_order_relaxed) * 100.0f);
                     monitorData.Voltagex100 = (uint32_t)(gSharedData.remote_monitors[idx].voltage.load(std::memory_order_relaxed) * 100.0f);
                     monitorData.Temperaturex100 = (uint32_t)(gSharedData.remote_monitors[idx].temperature.load(std::memory_order_relaxed) * 100.0f);
+                    monitorData.IsPowerLostPhare = gSharedData.remote_monitors[idx].is_power_lost_phare.load(std::memory_order_relaxed);
 
                     MonitorDataMessage msg(monitorData);
                     CodecMessage codecMsg;
@@ -140,7 +141,7 @@ void MqttManagerTask::onQueueSetMessageProcess(OSBase::QueueHandle queue_sem)
                     // Publish raw bytes over MQTT
                     uint16_t totalLen = codecMsg.mMsgDataLength; 
                     mMqttClient->publish(mTopicTelemetry, (const char*)codecMsg.mDataRaw, totalLen, MqttClientAbstract::QOS_1);
-                    // LOG_DEBUG("MqttManagerTask", "Published telemetry to topic: %s", mTopicTelemetry.c_str());
+                    LOG_DEBUG("MqttManagerTask", "Published telemetry to topic: %s, len: %d", mTopicTelemetry.c_str(), totalLen);
                 } else {
                     LOG_ERROR("MqttManagerTask", "Failed to pack telemetry data");
                 }

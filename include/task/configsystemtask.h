@@ -4,6 +4,8 @@
 #include "codec/codecmessage.h"
 #include <string>
 
+#include "lwip/sockets.h"
+
 class ConfigSystemTask : public TaskAbstract
 {
 public:
@@ -24,6 +26,7 @@ private:
     void sendPingResponseToAppCenter();
 
 private:
-    UdpAbstract *mUdp{nullptr};
+    int mSockFd{-1};
+    struct sockaddr_in mRemoteAddr;
     uint32_t mCounter100Hz{0};
 };

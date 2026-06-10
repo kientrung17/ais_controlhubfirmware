@@ -77,6 +77,7 @@ struct RemoteMonitorState {
   std::atomic<float> pH{0.0f};
   std::atomic<float> voltage{0.0f};
   std::atomic<float> temperature{0.0f};
+  std::atomic<uint32_t> is_power_lost_phare{0};
   std::atomic<bool>  has_new_data{false};
 };
 

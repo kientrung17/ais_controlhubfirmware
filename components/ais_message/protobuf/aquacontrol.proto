@@ -21,6 +21,7 @@ message MonitorData {
     required uint32 pHx100 = 4;
     required uint32 Voltagex100 = 5;
     required uint32 Temperaturex100 = 6;
+    required uint32 IsPowerLostPhare = 7; // Mất pha phía monitor (Bitmask từ 0 đến 7)
 }
 
 // =========================================================

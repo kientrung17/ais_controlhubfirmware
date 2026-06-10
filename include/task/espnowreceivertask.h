@@ -16,6 +16,7 @@ struct EspNowMonitorPayload {
     float pH;                // Độ pH nước
     float voltage;           // Điện áp pin/ắc quy
     float temperature;       // Nhiệt độ vỏ động cơ
+    uint32_t isPowerLostPhare; // Mất pha mạch Monitor (Bitmask từ 0 đến 7)
 };
 #pragma pack(pop)
 
