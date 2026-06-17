@@ -38,11 +38,11 @@ ConfigSystemTask *mConfigSystemTask{nullptr};
 // mqtt manager
 #define ID_MQTT_MANAGER_TASK 6
 const std::string MQTT_MANAGER_TASKNAME = "MqttManagerTask";
-const uint8_t MaxElementQueueSetTaskMqttManager = 10;
+const uint8_t MaxElementQueueSetTaskMqttManager = 20;
 MqttManagerTask *mMqttManagerTask{nullptr};
 // - 1 (sem 100Hz)
-// Dùng 4 để có biên an toàn.
-const uint8_t MaxElementQueueSetTaskWifiManager = 4;
+// Dùng 10 để có biên an toàn.
+const uint8_t MaxElementQueueSetTaskWifiManager = 10;
 WifiManagerTask *mWifiManagerTask{nullptr};
 WiFiManagerAbstract *mWifiManagerAbs{nullptr};
 
@@ -50,7 +50,7 @@ WiFiManagerAbstract *mWifiManagerAbs{nullptr};
 //  config system
 #define ID_RELAY_MANAGER_TASK 3
 const std::string RELAY_MANAGER_TASKNAME = "RelayManagerTask";
-const uint8_t MaxElementQueueSetTaskRelayManager = 10;
+const uint8_t MaxElementQueueSetTaskRelayManager = 20;
 RelayManagerTask *mRelayManagerTask{nullptr};
 // TouchSensorAbstract *mTouchSensor[RelayManagerTask::MAX_NUM_TOUCH_SENSOR];
 
