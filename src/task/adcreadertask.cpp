@@ -3,6 +3,8 @@
 #include "esp_timer.h"
 #include "loggermanager.h"
 #include <cmath>
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 
 AdcReaderTask::AdcReaderTask(std::string nameTask, int numElementQueueSet)
     : TaskAbstract(nameTask, numElementQueueSet) {}
@@ -172,6 +174,7 @@ void AdcReaderTask::computeAndSendRms() {
     M2_2 += d2a * (mv2 - mean2);
 
     sumCheck += mvCheck;
+    taskYIELD();
   }
 
   if (count < 2)

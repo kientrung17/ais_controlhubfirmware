@@ -20,15 +20,21 @@ void WifiManagerTask::onTimer100HzProcess()
 {
     mCounter100Hz++;
 
-    // đồng bộ thời gian hệ thống với thời gian từ server sntp
-    if (mStateSntpCurrent != StateSntp::Synced && mWifiStaInited && mWiFiManager->isWifiConnected() == true)
+    // check sntp sync status
+    if (!gIsSntpSynced && mIsWifiStaConnected)
     {
-        processInitSntpStateMachine(mStateSntpCurrent);
+        sntp_sync_status_t status = sntp_get_sync_status();
+        if (status == SNTP_SYNC_STATUS_COMPLETED)
+        {
+            gIsSntpSynced = true;
+            LOG_INFO("WifiManagerTask", "SNTP synchronized successfully");
+        }
     }
-    // Đồng bộ thời gian lại sau mỗi 1h
-    if (mCounter100Hz % DIV_COUNTER_1_H == 0)
+
+    // Print free heap memory every 10 seconds for memory leak diagnostic
+    if (mCounter100Hz % DIV_COUNTER_10_S == 0)
     {
-        mStateSntpCurrent = StateSntp::Idle;
+        LOG_INFO("WifiManagerTask", "Diagnostics: Free Heap Size: %d bytes", (int)esp_get_free_heap_size());
     }
 
     // div timer
@@ -51,6 +57,15 @@ void WifiManagerTask::onTimer100HzProcess()
             {
                 LOG_INFO("WifiManagerTask", "Wifi sta connected");
                 xEventGroupSetBits(gEventGroupNetworkState, BIT_WIFI_CONNECTED);
+
+                // Initialize SNTP once with multiple backup servers
+                esp_sntp_stop();
+                esp_sntp_setoperatingmode(ESP_SNTP_OPMODE_POLL);
+                esp_sntp_setservername(0, "pool.ntp.org");
+                esp_sntp_setservername(1, "time.google.com");
+                esp_sntp_setservername(2, "time.cloudflare.com");
+                esp_sntp_init();
+                LOG_INFO("WifiManagerTask", "SNTP initialized with backup servers");
             }
             else
             {

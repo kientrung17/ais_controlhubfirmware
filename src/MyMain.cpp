@@ -208,7 +208,7 @@ void startAllTask() {
                           OSBase::PRIORITY_NORMAL, 4096,
                           ID_POWER_MANAGER_TASK) &&
       mOSBase->taskCreate((char *)ADC_READER_TASKNAME.c_str(),
-                          (TaskProc)StartAdcReaderTask, OSBase::PRIORITY_HIGH,
+                          (TaskProc)StartAdcReaderTask, OSBase::PRIORITY_NORMAL,
                           4096, ID_ADC_READER_TASK) &&
       mOSBase->taskCreate((char *)CONFIG_SYSTEM_TASKNAME.c_str(),
                           (TaskProc)StartConfigSystemTask, OSBase::PRIORITY_NORMAL,
