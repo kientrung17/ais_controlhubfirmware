@@ -45,6 +45,8 @@ typedef struct _AquaCtrl_ControlStatusData {
     uint32_t IsLostElectric;
     uint32_t Temperaturex100;
     uint32_t Voltagex100;
+    bool has_relayStatus;
+    uint32_t relayStatus; /* Bitmask trạng thái 6 Relay */
 } AquaCtrl_ControlStatusData;
 
 
@@ -55,10 +57,10 @@ extern "C" {
 /* Initializer values for message structs */
 #define AquaCtrl_ControlRelayData_init_default   {0, 0}
 #define AquaCtrl_MonitorData_init_default        {0, 0, 0, 0, 0, 0, 0}
-#define AquaCtrl_ControlStatusData_init_default  {0, 0, 0, 0, 0, 0, 0}
+#define AquaCtrl_ControlStatusData_init_default  {0, 0, 0, 0, 0, 0, 0, false, 0}
 #define AquaCtrl_ControlRelayData_init_zero      {0, 0}
 #define AquaCtrl_MonitorData_init_zero           {0, 0, 0, 0, 0, 0, 0}
-#define AquaCtrl_ControlStatusData_init_zero     {0, 0, 0, 0, 0, 0, 0}
+#define AquaCtrl_ControlStatusData_init_zero     {0, 0, 0, 0, 0, 0, 0, false, 0}
 
 /* Field tags (for use in manual encoding/decoding) */
 #define AquaCtrl_ControlRelayData_channel_tag    1
@@ -77,6 +79,7 @@ extern "C" {
 #define AquaCtrl_ControlStatusData_IsLostElectric_tag 5
 #define AquaCtrl_ControlStatusData_Temperaturex100_tag 6
 #define AquaCtrl_ControlStatusData_Voltagex100_tag 7
+#define AquaCtrl_ControlStatusData_relayStatus_tag 8
 
 /* Struct field encoding specification for nanopb */
 #define AquaCtrl_ControlRelayData_FIELDLIST(X, a) \
@@ -103,7 +106,8 @@ X(a, STATIC,   REQUIRED, UINT32,   AmpeChannel2x100,   3) \
 X(a, STATIC,   REQUIRED, UINT32,   IsPowerLostPhare,   4) \
 X(a, STATIC,   REQUIRED, UINT32,   IsLostElectric,    5) \
 X(a, STATIC,   REQUIRED, UINT32,   Temperaturex100,   6) \
-X(a, STATIC,   REQUIRED, UINT32,   Voltagex100,       7)
+X(a, STATIC,   REQUIRED, UINT32,   Voltagex100,       7) \
+X(a, STATIC,   OPTIONAL, UINT32,   relayStatus,       8)
 #define AquaCtrl_ControlStatusData_CALLBACK NULL
 #define AquaCtrl_ControlStatusData_DEFAULT NULL
 
@@ -117,9 +121,9 @@ extern const pb_msgdesc_t AquaCtrl_ControlStatusData_msg;
 #define AquaCtrl_ControlStatusData_fields &AquaCtrl_ControlStatusData_msg
 
 /* Maximum encoded size of messages (where known) */
-#define AQUACTRL_AQUACONTROL_PB_H_MAX_SIZE       AquaCtrl_MonitorData_size
+#define AQUACTRL_AQUACONTROL_PB_H_MAX_SIZE       AquaCtrl_ControlStatusData_size
 #define AquaCtrl_ControlRelayData_size           12
-#define AquaCtrl_ControlStatusData_size          42
+#define AquaCtrl_ControlStatusData_size          48
 #define AquaCtrl_MonitorData_size                42
 
 #ifdef __cplusplus

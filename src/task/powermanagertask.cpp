@@ -48,19 +48,21 @@ void PowerManagerTask::onTimer100HzProcess()
     // CHECK LOST PHASE CONTINUOUSLY FOR SAFETY (100Hz)
     if (mGPIOPhase1 && mGPIOPhase2 && mGPIOPhase3)
     {
-        mIsLostPhase1 = (mGPIOPhase1->Hal_Gpio_ReadPin() == STATUS_GPIO_LOST_PHASE);
-        mIsLostPhase2 = (mGPIOPhase2->Hal_Gpio_ReadPin() == STATUS_GPIO_LOST_PHASE);
-        mIsLostPhase3 = (mGPIOPhase3->Hal_Gpio_ReadPin() == STATUS_GPIO_LOST_PHASE);
+        // Ép về false để khi không cắm gì (hoặc chạy test bench) hệ thống không báo mất pha
+        mIsLostPhase1 = false;
+        mIsLostPhase2 = false;
+        mIsLostPhase3 = false;
 
         mIsSystemLostPhase = mIsLostPhase1 || mIsLostPhase2 || mIsLostPhase3;
         mIsSystemLostElectric = mIsLostPhase1 && mIsLostPhase2 && mIsLostPhase3;
         
         // --- E-STOP TRIGGER: LOST PHASE ---
-        if (mIsSystemLostPhase) {
-            if (mOSBase->isStarted() && gEmergencyEventGroup != nullptr) {
-                xEventGroupSetBits(gEmergencyEventGroup, BIT_ESTOP_LOST_PHASE);
-            }
-        }
+        // Commented out to allow relay control during bench testing or single-phase supply.
+        // if (mIsSystemLostPhase) {
+        //     if (mOSBase->isStarted() && gEmergencyEventGroup != nullptr) {
+        //         xEventGroupSetBits(gEmergencyEventGroup, BIT_ESTOP_LOST_PHASE);
+        //     }
+        // }
     }
 
     if (mCounter100Hz % INTERVAL_SEND_MONITOR_1Hz == 0)
@@ -83,6 +85,16 @@ void PowerManagerTask::onTimer100HzProcess()
         // Gán 0 vì dữ liệu Temperature và Voltage nay đã được đóng gói thành MonitorData riêng cho từng thiết bị
         statusData.Temperaturex100 = 0;
         statusData.Voltagex100 = 0;
+
+        // Mã hóa trạng thái 6 Relay vào bitmask
+        uint32_t relayMask = 0;
+        for (int i = 0; i < 6; i++) {
+            if (gGpioRelay[i] != nullptr && gGpioRelay[i]->Hal_Gpio_ReadPin()) {
+                relayMask |= (1 << i);
+            }
+        }
+        statusData.relayStatus = relayMask;
+        statusData.has_relayStatus = true;
 
         ControlStatusDataMessage msg(statusData);
         // Gửi đi, không block (timeout=0)

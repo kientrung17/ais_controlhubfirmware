@@ -124,13 +124,22 @@ void AdcReaderTask::computeAndSendRms() {
   double sumCheck = 0.0;
   int count = 0;
 
+  // Rate limiter for logging: 200ms * 20 = 4000ms (4 seconds)
+  static int log_counter = 0;
+  log_counter++;
+  bool should_log = false;
+  if (log_counter >= 20) {
+    should_log = true;
+    log_counter = 0;
+  }
+
   // Sample đúng 100ms = 5 chu kỳ 50Hz
   // 5 chu kỳ: sai số pha giảm sqrt(5)x, variance RMS ổn định hơn nhiều
   const uint64_t WINDOW_US = 100000ULL;
   uint64_t startUs = esp_timer_get_time();
 
   // ----- Diagnostic: Log raw đầu burst -----
-  {
+  if (should_log) {
     int r1 = 0, r2 = 0, rC = 0;
     adc_oneshot_read(mAdcHandle, CH_SCT01, &r1);
     adc_oneshot_read(mAdcHandle, CH_SCT02, &r2);
@@ -199,11 +208,13 @@ void AdcReaderTask::computeAndSendRms() {
   mSmoothedAmpe2 =
       SMOOTH_ALPHA * ampe2 + (1.0f - SMOOTH_ALPHA) * mSmoothedAmpe2;
 
-  LOG_DEBUG(
-      "AdcReaderTask",
-      "DC1=%.0fmV DC2=%.0fmV | RMS=%.1fmV/%.1fmV | A1=%.2fA A2=%.2fA [N=%d]",
-      (float)mean1, (float)mean2, rms_mv1, rms_mv2, mSmoothedAmpe1,
-      mSmoothedAmpe2, count);
+  if (should_log) {
+    LOG_DEBUG(
+        "AdcReaderTask",
+        "DC1=%.0fmV DC2=%.0fmV | RMS=%.1fmV/%.1fmV | A1=%.2fA A2=%.2fA [N=%d]",
+        (float)mean1, (float)mean2, rms_mv1, rms_mv2, mSmoothedAmpe1,
+        mSmoothedAmpe2, count);
+  }
 
   // Store to Shared Data Store directly (Lock-free)
   gSharedData.ampe_ch1.store(mSmoothedAmpe1, std::memory_order_relaxed);
