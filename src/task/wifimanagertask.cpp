@@ -58,6 +58,10 @@ void WifiManagerTask::onTimer100HzProcess()
                 LOG_INFO("WifiManagerTask", "Wifi sta connected");
                 xEventGroupSetBits(gEventGroupNetworkState, BIT_WIFI_CONNECTED);
 
+                // Disable WiFi Power Save to prevent DELBA timeout and hangs
+                esp_wifi_set_ps(WIFI_PS_NONE);
+                LOG_INFO("WifiManagerTask", "WiFi Power Save disabled");
+
                 // Initialize SNTP once with multiple backup servers
                 esp_sntp_stop();
                 esp_sntp_setoperatingmode(ESP_SNTP_OPMODE_POLL);
