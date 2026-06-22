@@ -18,8 +18,6 @@ RelayManagerTask::RelayManagerTask(std::string nameTask, int numElementQueueSet,
         }
     }
 
-    // Call onInitProcess once at startup
-    onInitProcess();
 }
 
 RelayManagerTask::~RelayManagerTask()

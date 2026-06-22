@@ -32,7 +32,7 @@ void AdcReaderTask::onInitProcess() {
   // crash! Dùng burst task: ngủ 200ms -> burst 200 mẫu liên tục -> tính RMS ->
   // lặp lại
   BaseType_t ret =
-      xTaskCreate(adcBurstTask, "AdcBurst", 4096, this, 5, nullptr);
+      xTaskCreate(adcBurstTask, "AdcBurst", 4096, this, 2, nullptr); // FIX: priority 2 < PRIORITY_NORMAL(3) để không starve các task khác
   if (ret != pdPASS) {
     LOG_ERROR("AdcReaderTask", "Failed to create adcBurstTask (ret=%d)",
               (int)ret);

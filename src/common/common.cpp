@@ -2,6 +2,8 @@
 #include "common.h"
 #include "esp_mac.h"
 #include "esp_task_wdt.h"
+#include "esp_log.h"
+#include "esp_heap_caps.h"
 #include "flashmanager.h"
 #include "common/storeflashmanager.h"
 #include "freertos/FreeRTOS.h"
@@ -47,8 +49,17 @@ bool gIsSntpSynced = false;
 
 void processTimer100Hz() {
   static int counter = 0;
+  static int debug_counter = 0;
   // send semmaphore event 100Hz (every 10 calls, since timer is 1kHz)
   if (++counter >= 10) {
+    // Debug: log mỗi 30 giây để phát hiện timer ISR chết
+    if (++debug_counter >= 3000) {
+      ESP_LOGI("TIMER_DBG", "100Hz timer alive | tick=%lu | heap_free=%lu min=%lu",
+               (unsigned long)xTaskGetTickCount(),
+               (unsigned long)esp_get_free_heap_size(),
+               (unsigned long)esp_get_minimum_free_heap_size());
+      debug_counter = 0;
+    }
     TaskManager::getInstance()->onTimer100Hz();
     counter = 0;
   }

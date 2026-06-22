@@ -6,6 +6,7 @@
  */
 
 #include "myMain.h"
+#include "common/taskmonitor.h"
 #include "logger/loggermanager.h"
 #include "message/controlstatusdatamessage.h"
 #include "task/adcreadertask.h"
@@ -38,7 +39,11 @@ ConfigSystemTask *mConfigSystemTask{nullptr};
 // mqtt manager
 #define ID_MQTT_MANAGER_TASK 6
 const std::string MQTT_MANAGER_TASKNAME = "MqttManagerTask";
+<<<<<<< Updated upstream
 const uint8_t MaxElementQueueSetTaskMqttManager = 20;
+=======
+const uint8_t MaxElementQueueSetTaskMqttManager = 15; // FIX: cần >= 1 (sem) + 10 (queue depth) = 11, dùng 15 cho an toàn
+>>>>>>> Stashed changes
 MqttManagerTask *mMqttManagerTask{nullptr};
 // - 1 (sem 100Hz)
 // Dùng 10 để có biên an toàn.
@@ -50,7 +55,11 @@ WiFiManagerAbstract *mWifiManagerAbs{nullptr};
 //  config system
 #define ID_RELAY_MANAGER_TASK 3
 const std::string RELAY_MANAGER_TASKNAME = "RelayManagerTask";
+<<<<<<< Updated upstream
 const uint8_t MaxElementQueueSetTaskRelayManager = 20;
+=======
+const uint8_t MaxElementQueueSetTaskRelayManager = 15;
+>>>>>>> Stashed changes
 RelayManagerTask *mRelayManagerTask{nullptr};
 // TouchSensorAbstract *mTouchSensor[RelayManagerTask::MAX_NUM_TOUCH_SENSOR];
 
@@ -220,6 +229,7 @@ void startAllTask() {
                           (TaskProc)StartEspNowReceiverTask, OSBase::PRIORITY_NORMAL,
                           4096, ID_ESPNOW_RECEIVER_TASK)) {
     LOG_INFO("MyMain", "Start All Task Success");
+    start_task_monitor();
   } else {
     LOG_ERROR("MyMain", "Start All Task Error");
   }
