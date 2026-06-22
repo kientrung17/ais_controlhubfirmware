@@ -39,11 +39,7 @@ ConfigSystemTask *mConfigSystemTask{nullptr};
 // mqtt manager
 #define ID_MQTT_MANAGER_TASK 6
 const std::string MQTT_MANAGER_TASKNAME = "MqttManagerTask";
-<<<<<<< Updated upstream
-const uint8_t MaxElementQueueSetTaskMqttManager = 20;
-=======
-const uint8_t MaxElementQueueSetTaskMqttManager = 15; // FIX: cần >= 1 (sem) + 10 (queue depth) = 11, dùng 15 cho an toàn
->>>>>>> Stashed changes
+const uint8_t MaxElementQueueSetTaskMqttManager = 15; // FIX: >= 1 (sem) + 10 (queue depth) = 11, dùng 15 cho an toàn
 MqttManagerTask *mMqttManagerTask{nullptr};
 // - 1 (sem 100Hz)
 // Dùng 10 để có biên an toàn.
@@ -55,11 +51,7 @@ WiFiManagerAbstract *mWifiManagerAbs{nullptr};
 //  config system
 #define ID_RELAY_MANAGER_TASK 3
 const std::string RELAY_MANAGER_TASKNAME = "RelayManagerTask";
-<<<<<<< Updated upstream
-const uint8_t MaxElementQueueSetTaskRelayManager = 20;
-=======
-const uint8_t MaxElementQueueSetTaskRelayManager = 15;
->>>>>>> Stashed changes
+const uint8_t MaxElementQueueSetTaskRelayManager = 15; // FIX: >= 1 (sem) + 10 (queue relay cmd queue) = 11, dùng 15 cho an toàn
 RelayManagerTask *mRelayManagerTask{nullptr};
 // TouchSensorAbstract *mTouchSensor[RelayManagerTask::MAX_NUM_TOUCH_SENSOR];
 
