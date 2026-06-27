@@ -100,6 +100,9 @@ void PowerManagerTask::onTimer100HzProcess()
         // Gửi đi, không block (timeout=0)
         if (mOSBase->queueSend(gQueuePowerDataToMqtt, &msg) != OSBase::QUEUE_OK) {
             LOG_ERROR("PowerManagerTask", "Failed to send power data to MQTT queue");
+        } else {
+            // DEBUG: Log để biết chắc là task PowerManager vẫn gửi dữ liệu đều đặn mỗi 1 giây!
+            LOG_DEBUG("PowerManagerTask", "Successfully queued power data to MQTT queue (mCounter100Hz=%lu)", (unsigned long)mCounter100Hz);
         }
     }
 

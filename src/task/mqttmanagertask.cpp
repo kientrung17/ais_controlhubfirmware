@@ -145,6 +145,8 @@ void MqttManagerTask::onQueueSetMessageProcess(OSBase::QueueHandle queue_sem)
                 } else {
                     LOG_ERROR("MqttManagerTask", "Failed to pack telemetry data");
                 }
+            } else {
+                LOG_ERROR("MqttManagerTask", "Dropped telemetry because MQTT is disconnected!");
             }
         }
     }

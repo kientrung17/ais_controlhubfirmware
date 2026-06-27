@@ -8,8 +8,47 @@
 #include "common/storeflashmanager.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "freertos/FreeRTOSConfig.h"
 #include "taskmanager.h"
 #include <inttypes.h>
+
+// Danh sách tên các task quan trọng cần được bảo vệ khỏi taskfreezer
+static const char* PROTECTED_TASK_NAMES[] = {
+    "WifiManagerTask",
+    "RelayManagerTas",  // FreeRTOS truncates to 16 chars
+    "PowerManagerTas",
+    "AdcReaderTask",
+    "EspNowReceiverT",
+    "ConfigSystemTas",
+    "MqttManagerTask",
+    nullptr // sentinel
+};
+
+// Resume bất kỳ Task nào trong danh sách bị Suspended bởi taskfreezer
+static void resumeSuspendedProtectedTasks() {
+    // Lấy danh sách tất cả task đang chạy
+    UBaseType_t numTasks = uxTaskGetNumberOfTasks();
+    TaskStatus_t* taskArray = (TaskStatus_t*)pvPortMalloc(numTasks * sizeof(TaskStatus_t));
+    if (!taskArray) return;
+    
+    uint32_t totalRunTime = 0;
+    UBaseType_t filled = uxTaskGetSystemState(taskArray, numTasks, &totalRunTime);
+    
+    for (UBaseType_t i = 0; i < filled; i++) {
+        if (taskArray[i].eCurrentState == eSuspended) {
+            // Kiểm tra xem tên task có trong danh sách protected không
+            for (int j = 0; PROTECTED_TASK_NAMES[j] != nullptr; j++) {
+                if (strncmp(taskArray[i].pcTaskName, PROTECTED_TASK_NAMES[j], configMAX_TASK_NAME_LEN - 1) == 0) {
+                    ESP_LOGW("WDT_RESUMER", "Task '%s' was Suspended by taskfreezer! Resuming...", taskArray[i].pcTaskName);
+                    vTaskResume(taskArray[i].xHandle);
+                    break;
+                }
+            }
+        }
+    }
+    
+    vPortFree(taskArray);
+}
 
 
 const System_ConfigSystemData defaultConfig = {.userSystemID = "sys000001",
@@ -47,12 +86,13 @@ FlashManagerAbstract *gFlashManager = new FlashManager();
 bool gIsSntpSynced = false;
 // Init function
 
-void processTimer100Hz() {
-  static int counter = 0;
-  static int debug_counter = 0;
-  // send semmaphore event 100Hz (every 10 calls, since timer is 1kHz)
-  if (++counter >= 10) {
-    // Debug: log mỗi 30 giây để phát hiện timer ISR chết
+void heartbeatTask(void *arg) {
+  int debug_counter = 0;
+  int resumer_counter = 0;
+  while (1) {
+    vTaskDelay(pdMS_TO_TICKS(10)); // Ngủ 10ms (100Hz)
+    
+    // Debug: log mỗi 30 giây
     if (++debug_counter >= 3000) {
       ESP_LOGI("TIMER_DBG", "100Hz timer alive | tick=%lu | heap_free=%lu min=%lu",
                (unsigned long)xTaskGetTickCount(),
@@ -60,9 +100,28 @@ void processTimer100Hz() {
                (unsigned long)esp_get_minimum_free_heap_size());
       debug_counter = 0;
     }
+
+    // WatchdogResumer: mỗi 1 giây (100 ticks) quét và Resume các Task bị treo bởi taskfreezer
+    if (++resumer_counter >= 100) {
+      resumeSuspendedProtectedTasks();
+      resumer_counter = 0;
+    }
+    
+    uint32_t start_tick = xTaskGetTickCount();
     TaskManager::getInstance()->onTimer100Hz();
-    counter = 0;
+    uint32_t end_tick = xTaskGetTickCount();
+    
+    // Nếu hàm onTimer100Hz() tốn hơn 50ms (5 ticks) để chạy, nó đang bị BLOCK!
+    if ((end_tick - start_tick) > 5) {
+        ESP_LOGE("TIMER_DBG", "CRITICAL WARNING: TaskManager::onTimer100Hz took %lu ticks! Something is blocking it!", 
+                 (unsigned long)(end_tick - start_tick));
+    }
   }
+}
+
+extern "C" void startHeartbeatTask() {
+    // Tạo HeartbeatTask với mức ưu tiên cực cao (Priority 23) để đảm bảo độ chính xác
+    xTaskCreate(heartbeatTask, "Heartbeat", 2048, nullptr, 23, nullptr);
 }
 
 // get ID
