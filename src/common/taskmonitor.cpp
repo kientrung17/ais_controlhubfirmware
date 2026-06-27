@@ -3,6 +3,7 @@
 #include "freertos/task.h"
 #include "esp_log.h"
 #include "esp_heap_caps.h"
+#include "common/common.h"
 
 static const char *TAG = "TASK_MONITOR";
 
@@ -12,6 +13,12 @@ static void task_monitor_fn(void *pvParameters)
     vTaskDelay(pdMS_TO_TICKS(5000)); // Chờ hệ thống ổn định
 
     while (true) {
+        // Feed the task watchdog (taskfreezer) in the framework by calling getAllTaskInfor
+        OSBase::task_monitor_infor_t taskInfoArray[OSBase::MAX_TASK_MONITOR];
+        uint8_t heapUsage = 0;
+        uint8_t cpuUsageIdle = 0;
+        mOSBase->getAllTaskInfor(taskInfoArray, OSBase::MAX_TASK_MONITOR, &heapUsage, &cpuUsageIdle);
+
         UBaseType_t uxArraySize = uxTaskGetNumberOfTasks();
         TaskStatus_t *pxTaskStatusArray = (TaskStatus_t *)pvPortMalloc(uxArraySize * sizeof(TaskStatus_t));
 
@@ -49,7 +56,7 @@ static void task_monitor_fn(void *pvParameters)
                  (unsigned int)esp_get_minimum_free_heap_size());
         ESP_LOGI(TAG, "=============================================================");
 
-        vTaskDelay(pdMS_TO_TICKS(10000)); // Lặp lại mỗi 10 giây
+        vTaskDelay(pdMS_TO_TICKS(3000)); // Lặp lại mỗi 3 giây
     }
 }
 

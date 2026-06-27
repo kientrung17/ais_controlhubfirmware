@@ -103,7 +103,7 @@ void EspNowReceiverTask::onDataReceive(const esp_now_recv_info_t *recvInfo,
         gSharedData.remote_monitors[payload.deviceId].has_new_data.store(true, std::memory_order_release);
     }
 
-    LOG_INFO("EspNowReceiverTask", "OK | deviceId=%d | I1=%.2f Oxy=%.2f pH=%.2f | Temp=%.2f°C | Volt=%.2fV | PhaseLostMask=%u",
-              payload.deviceId, payload.ampeChannel1, payload.oxy, payload.pH, 
-              payload.temperature, payload.voltage, payload.isPowerLostPhare);
+    // LOG_INFO("EspNowReceiverTask", "OK | deviceId=%d | I1=%.2f Oxy=%.2f pH=%.2f | Temp=%.2f°C | Volt=%.2fV | PhaseLostMask=%u",
+    //           payload.deviceId, payload.ampeChannel1, payload.oxy, payload.pH, 
+    //           payload.temperature, payload.voltage, payload.isPowerLostPhare);
 }

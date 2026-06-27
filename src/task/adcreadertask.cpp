@@ -118,111 +118,71 @@ int AdcReaderTask::calibrateToMv(adc_channel_t ch, int raw) {
 //   - Tính True RMS với Welford's algorithm
 // ============================================================
 void AdcReaderTask::computeAndSendRms() {
-  // Welford's Online Algorithm: tính mean và variance trong 1 pass
-  // DC = mean của burst => AC = sample - mean => không dùng EMA để tránh "chạy
-  // theo AC"
-  double mean1 = 0.0, mean2 = 0.0;
-  double M2_1 = 0.0, M2_2 = 0.0;
-  double sumCheck = 0.0;
-  int count = 0;
+    double mean2 = 0.0, meanCheck = 0.0;
+    double M2_2 = 0.0, M2_Check = 0.0;
+    int count = 0;
 
-  // Rate limiter for logging: 200ms * 20 = 4000ms (4 seconds)
-  static int log_counter = 0;
-  log_counter++;
-  bool should_log = false;
-  if (log_counter >= 20) {
-    should_log = true;
-    log_counter = 0;
-  }
+    const uint64_t WINDOW_US = 100000ULL; // 100ms
+    uint64_t startUs = esp_timer_get_time();
 
-  // Sample đúng 100ms = 5 chu kỳ 50Hz
-  // 5 chu kỳ: sai số pha giảm sqrt(5)x, variance RMS ổn định hơn nhiều
-  const uint64_t WINDOW_US = 100000ULL;
-  uint64_t startUs = esp_timer_get_time();
+    while ((esp_timer_get_time() - startUs) < WINDOW_US) {
+        int raw2 = 0, rawCheck = 0;
+        
+        esp_err_t err2 = adc_oneshot_read(mAdcHandle, CH_SCT02, &raw2);
+        esp_err_t errCheck = adc_oneshot_read(mAdcHandle, CH_CHECKPIN, &rawCheck);
 
-  // ----- Diagnostic: Log raw đầu burst -----
-  if (should_log) {
-    int r1 = 0, r2 = 0, rC = 0;
-    adc_oneshot_read(mAdcHandle, CH_SCT01, &r1);
-    adc_oneshot_read(mAdcHandle, CH_SCT02, &r2);
-    adc_oneshot_read(mAdcHandle, CH_CHECKPIN, &rC);
-    LOG_DEBUG("AdcReaderTask", "[RAW] GPIO36=%d GPIO39=%d GPIO35=%d", r1, r2,
-              rC);
-  }
-  // ------------------------------------------
+        if (err2 == ESP_OK && errCheck == ESP_OK) {
+            double mv2 = (double)calibrateToMv(CH_SCT02, raw2);
+            double mvCheck = (double)calibrateToMv(CH_CHECKPIN, rawCheck);
+            count++;
 
-  while ((esp_timer_get_time() - startUs) < WINDOW_US) {
-    int raw1 = 0, raw2 = 0, rawCheck = 0;
-    adc_oneshot_read(mAdcHandle, CH_SCT01, &raw1);
-    adc_oneshot_read(mAdcHandle, CH_SCT02, &raw2);
-    adc_oneshot_read(mAdcHandle, CH_CHECKPIN, &rawCheck);
+            // Current calculation (Welford)
+            double d2a = mv2 - mean2;
+            mean2 += d2a / count;
+            M2_2 += d2a * (mv2 - mean2);
 
-    double mv1 = (double)calibrateToMv(CH_SCT01, raw1);
-    double mv2 = (double)calibrateToMv(CH_SCT02, raw2);
-    double mvCheck = (double)calibrateToMv(CH_CHECKPIN, rawCheck);
+            // Voltage calculation (Welford)
+            double dCheck = mvCheck - meanCheck;
+            meanCheck += dCheck / count;
+            M2_Check += dCheck * (mvCheck - meanCheck);
+        }
+    }
 
-    count++;
+    if (count < 2)
+        return;
 
-    // Welford update ch1: mean và M2 (= sum of squared deviations from mean)
-    double d1a = mv1 - mean1;
-    mean1 += d1a / count;
-    M2_1 += d1a * (mv1 - mean1);
+    float rms_mv2 = (float)std::sqrt(M2_2 / count);
+    float avgCheckMv = (float)meanCheck;
 
-    // Welford update ch2
-    double d2a = mv2 - mean2;
-    mean2 += d2a / count;
-    M2_2 += d2a * (mv2 - mean2);
+    // Update dynamic long-term offsets
+    mDcOffset2 = EMA_ALPHA * (float)mean2 + (1.0f - EMA_ALPHA) * mDcOffset2;
 
-    sumCheck += mvCheck;
-    taskYIELD();
-  }
+    float ampe2 = rms_mv2 * AMPS_PER_MV;
 
-  if (count < 2)
-    return;
+    // --- E-STOP TRIGGER: OVERLOAD ---
+    if (ampe2 > 2.5f) {
+        if (mOSBase->isStarted() && gEmergencyEventGroup != nullptr) {
+            xEventGroupSetBits(gEmergencyEventGroup, BIT_ESTOP_OVERLOAD);
+        }
+    }
 
-  // RMS_AC = sqrt(variance) = sqrt(M2 / count)
-  float rms_mv1 = (float)std::sqrt(M2_1 / count);
-  float rms_mv2 = (float)std::sqrt(M2_2 / count);
-  float avgCheckMv = (float)(sumCheck / count);
+    if (ampe2 < NOISE_FLOOR)
+        ampe2 = 0.0f;
 
-  // Cập nhật EMA DC offset cho lần sau (long-term tracking)
-  mDcOffset1 = EMA_ALPHA * (float)mean1 + (1.0f - EMA_ALPHA) * mDcOffset1;
-  mDcOffset2 = EMA_ALPHA * (float)mean2 + (1.0f - EMA_ALPHA) * mDcOffset2;
+    mSmoothedAmpe2 = SMOOTH_ALPHA * ampe2 + (1.0f - SMOOTH_ALPHA) * mSmoothedAmpe2;
 
-  float ampe1 = rms_mv1 * AMPS_PER_MV;
-  float ampe2 = rms_mv2 * AMPS_PER_MV;
+    // Rate limiter for logging: 200ms * 20 = 4000ms (4 seconds)
+    static int log_counter = 0;
+    log_counter++;
+    if (log_counter >= 20) {
+        LOG_INFO("AdcReaderTask", "DC2=%.0fmV | RMS2=%.1fmV | Current2=%.2fA [Samples=%d]",
+                 (float)mean2, rms_mv2, mSmoothedAmpe2, count);
+        log_counter = 0;
+    }
 
-  // --- E-STOP TRIGGER: OVERLOAD ---
-  if (ampe1 > 15.0f || ampe2 > 15.0f) {
-      if (mOSBase->isStarted() && gEmergencyEventGroup != nullptr) {
-          xEventGroupSetBits(gEmergencyEventGroup, BIT_ESTOP_OVERLOAD);
-      }
-  }
-
-  if (ampe1 < NOISE_FLOOR)
-    ampe1 = 0.0f;
-  if (ampe2 < NOISE_FLOOR)
-    ampe2 = 0.0f;
-
-  // EMA output smoothing: giảm jitter hiển thị (không ảnh hưởng đến RMS tính
-  // toán)
-  mSmoothedAmpe1 =
-      SMOOTH_ALPHA * ampe1 + (1.0f - SMOOTH_ALPHA) * mSmoothedAmpe1;
-  mSmoothedAmpe2 =
-      SMOOTH_ALPHA * ampe2 + (1.0f - SMOOTH_ALPHA) * mSmoothedAmpe2;
-
-  if (should_log) {
-    LOG_DEBUG(
-        "AdcReaderTask",
-        "DC1=%.0fmV DC2=%.0fmV | RMS=%.1fmV/%.1fmV | A1=%.2fA A2=%.2fA [N=%d]",
-        (float)mean1, (float)mean2, rms_mv1, rms_mv2, mSmoothedAmpe1,
-        mSmoothedAmpe2, count);
-  }
-
-  // Store to Shared Data Store directly (Lock-free)
-  gSharedData.ampe_ch1.store(mSmoothedAmpe1, std::memory_order_relaxed);
-  gSharedData.ampe_ch2.store(mSmoothedAmpe2, std::memory_order_relaxed);
-  gSharedData.voltage_pin.store(avgCheckMv, std::memory_order_relaxed);
+    gSharedData.ampe_ch1.store(0.0f, std::memory_order_relaxed); // Kênh 1 tắt
+    gSharedData.ampe_ch2.store(mSmoothedAmpe2, std::memory_order_relaxed);
+    gSharedData.voltage_pin.store(avgCheckMv, std::memory_order_relaxed);
 }
 
 // ============================================================

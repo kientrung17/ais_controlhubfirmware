@@ -114,7 +114,7 @@ void MqttManagerTask::onTimer100HzProcess()
                         std::string topicMonitor = std::string("devices/") + devIdStr + "/telemetry/monitor";
 
                         uint16_t totalLen = codecMsg.mMsgDataLength; 
-                        mMqttClient->publish(topicMonitor, (const char*)codecMsg.mDataRaw, totalLen, MqttClientAbstract::QOS_1);
+                        mMqttClient->publish(topicMonitor, (const char*)codecMsg.mDataRaw, totalLen, MqttClientAbstract::QOS_0);
                     } else {
                         LOG_ERROR("MqttManagerTask", "Failed to pack MonitorData");
                     }
@@ -140,7 +140,7 @@ void MqttManagerTask::onQueueSetMessageProcess(OSBase::QueueHandle queue_sem)
                 if (msg.packData(&codecMsg)) {
                     // Publish raw bytes over MQTT
                     uint16_t totalLen = codecMsg.mMsgDataLength; 
-                    mMqttClient->publish(mTopicTelemetry, (const char*)codecMsg.mDataRaw, totalLen, MqttClientAbstract::QOS_1);
+                    mMqttClient->publish(mTopicTelemetry, (const char*)codecMsg.mDataRaw, totalLen, MqttClientAbstract::QOS_0);
                     LOG_DEBUG("MqttManagerTask", "Published telemetry to topic: %s, len: %d", mTopicTelemetry.c_str(), totalLen);
                 } else {
                     LOG_ERROR("MqttManagerTask", "Failed to pack telemetry data");

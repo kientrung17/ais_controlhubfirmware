@@ -39,14 +39,14 @@ private:
   // RMS: burst 200 mẫu LIÊN TỤC (không delay giữa các mẫu)
   // Ở tốc độ ADC ESP32 ~40kHz, 200 mẫu = 5ms -> bắt trọn 50Hz sin
   static constexpr int RMS_SAMPLES = 200;
-  // 20A / 1000mV (kế thừa: MAX_AMPLE_SENSOR=20A tại delta 1V)
-  static constexpr float AMPS_PER_MV = 20.0f / 1000.0f;
+  // 10A / 1000mV (SCT013-10A/1V)
+  static constexpr float AMPS_PER_MV = 10.0f / 1000.0f;
   // Noise floor phần cứng: chỉ lọc tín hiệu cực nhỏ do nhiễu nền ADC.
   // GIÁ TRỊ CŨ (1.5A) QUÁ CAO: đã cắt sạch toàn bộ dòng điện thực tế < 1.5A,
   // khiến A1/A2 luôn báo 0.00A sau mỗi lần reset.
-  // Spike từ relay phải được lọc bằng tụ 100nF trên phần cứng,
-  // KHÔNG dùng NOISE_FLOOR biên độ cao để tránh mất dữ liệu đo lường.
-  static constexpr float NOISE_FLOOR = 0.08f; // 0.08A = 4mV RMS ngưỡng nhiễu nền ADC
+  // Do Control Hub có nhiều Relay sinh nhiễu EMI -> Tăng Deadband lên 0.5A
+  // để lọc sạch nhiễu 0.3A - 0.4A khi không cắm tải.
+  static constexpr float NOISE_FLOOR = 0.5f;
 
   // EMA smoothing cho output (giảm jitter hiển thị)
   float mSmoothedAmpe1{0.0f};
